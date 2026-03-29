@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompt Cabinet</title>
+    <meta
+      name="description"
+      content="一个纯静态、部署到 GitHub Pages 的 Prompt 管理工作台。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <p class="brand__eyebrow">Prompt Workspace</p>
+          <h1>Prompt Cabinet</h1>
+          <p class="brand__summary">静态部署、本地存储、文本优先</p>
+        </div>
+
+        <div class="topbar__search">
+          <label class="search-field" for="search-input">
+            <span class="search-field__label">搜索</span>
+            <input
+              id="search-input"
+              type="search"
+              placeholder="搜索标题、正文、备注"
+              autocomplete="off"
+            />
+          </label>
+        </div>
+
+        <div class="topbar__actions">
+          <button id="new-prompt-btn" class="button button--primary" type="button">
+            新建 Prompt
+          </button>
+          <button id="manage-tags-btn" class="button" type="button">管理标签</button>
+          <button id="import-btn" class="button" type="button">导入</button>
+          <button id="export-btn" class="button" type="button">导出</button>
+          <button id="data-btn" class="button button--ghost" type="button">数据</button>
+          <input id="import-input" type="file" accept="application/json" hidden />
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar panel">
+          <section class="panel-section">
+            <div class="section-heading">
+              <p>系统筛选</p>
+            </div>
+            <div id="system-filters" class="filter-list"></div>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-heading">
+              <p>标签</p>
+              <button id="sidebar-create-tag-btn" class="text-button" type="button">
+                新建
+              </button>
+            </div>
+            <div id="sidebar-tags" class="tag-stack"></div>
+          </section>
+
+          <section class="panel-section panel-section--meta">
+            <div class="section-heading">
+              <p>工作区说明</p>
+            </div>
+            <p class="meta-text">
+              数据默认保存在当前浏览器本地。建议定期导出 JSON 备份，避免清缓存或换设备时丢失。
+            </p>
+          </section>
+        </aside>
+
+        <section class="list-panel panel">
+          <div class="panel-toolbar">
+            <div>
+              <p class="panel-title">Prompt 列表</p>
+              <p id="result-count" class="panel-subtitle"></p>
+            </div>
+
+            <label class="sort-field">
+              <span>排序</span>
+              <select id="sort-select">
+                <option value="updatedAt">最近编辑</option>
+                <option value="createdAt">创建时间</option>
+                <option value="lastOpenedAt">最近打开</option>
+                <option value="usageCount">使用次数</option>
+                <option value="title">标题</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="active-filter-summary" class="active-summary"></div>
+          <div id="prompt-list" class="prompt-list"></div>
+        </section>
+
+        <section class="editor-panel panel">
+          <div id="editor-empty" class="editor-empty">
+            <div class="editor-empty__card">
+              <p class="editor-empty__eyebrow">Local-first Prompt tool</p>
+              <h2>在这里查看和编辑 Prompt</h2>
+              <p>
+                左侧筛选，中间浏览，右侧编辑。先新建一条 Prompt，或者导入你已有的备份文件。
+              </p>
+              <div class="editor-empty__points">
+                <span>支持多标签关联</span>
+                <span>自动保存到本地</span>
+                <span>可导出 JSON 备份</span>
+              </div>
+              <div class="editor-empty__actions">
+                <button id="empty-create-btn" class="button button--primary" type="button">
+                  新建 Prompt
+                </button>
+                <button id="empty-import-btn" class="button" type="button">导入备份</button>
+              </div>
+            </div>
+          </div>
+
+          <form id="prompt-form" class="editor-form" autocomplete="off" hidden>
+            <div class="editor-header">
+              <div>
+                <p class="panel-title">Prompt 工作区</p>
+                <p id="editor-meta" class="panel-subtitle"></p>
+              </div>
+              <div class="editor-header__actions">
+                <button id="favorite-btn" class="button button--ghost" type="button">
+                  收藏
+                </button>
+                <button id="copy-btn" class="button" type="button">复制</button>
+                <button id="archive-btn" class="button button--ghost" type="button">
+                  归档
+                </button>
+              </div>
+            </div>
+
+            <div class="editor-body">
+              <section class="editor-compose">
+                <label class="field">
+                  <span>标题</span>
+                  <input id="title-input" type="text" maxlength="120" placeholder="例如：结构化产品竞品分析 Prompt" />
+                </label>
+
+                <label class="field">
+                  <span>Prompt 正文</span>
+                  <textarea
+                    id="content-input"
+                    rows="16"
+                    placeholder="把你常用的 Prompt 放在这里。正文支持长文本。"
+                  ></textarea>
+                </label>
+
+                <label class="field">
+                  <span>备注</span>
+                  <textarea
+                    id="note-input"
+                    rows="5"
+                    placeholder="记录来源、适用模型、使用说明或注意事项。"
+                  ></textarea>
+                </label>
+
+                <section class="field">
+                  <div class="field__header">
+                    <span>标签</span>
+                    <p>一个 Prompt 可以关联多个标签</p>
+                  </div>
+                  <div id="editor-tag-list" class="tag-checklist"></div>
+                  <div class="tag-creator">
+                    <input
+                      id="quick-tag-input"
+                      type="text"
+                      maxlength="24"
+                      placeholder="输入新标签名称"
+                    />
+                    <button id="quick-tag-btn" class="button" type="button">添加标签</button>
+                  </div>
+                </section>
+              </section>
+
+              <aside class="preview-panel">
+                <div class="preview-panel__header">
+                  <p class="preview-panel__label">即时预览</p>
+                  <p class="preview-panel__hint">便于快速核对结构和内容</p>
+                </div>
+
+                <article class="preview-sheet">
+                  <h3 id="preview-title" class="preview-sheet__title">未命名 Prompt</h3>
+                  <div id="preview-tags" class="preview-sheet__tags"></div>
+                  <pre id="preview-content" class="preview-sheet__content"></pre>
+                  <section id="preview-note-block" class="preview-sheet__note-block" hidden>
+                    <p class="preview-sheet__label">备注</p>
+                    <p id="preview-note" class="preview-sheet__note"></p>
+                  </section>
+                </article>
+              </aside>
+            </div>
+
+            <div class="editor-footer">
+              <p id="save-hint" class="save-hint">自动保存已开启</p>
+              <div class="editor-footer__actions">
+                <button id="duplicate-btn" class="button button--ghost" type="button">
+                  复制一份
+                </button>
+                <button id="delete-btn" class="button button--danger" type="button">
+                  删除
+                </button>
+              </div>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="tag-dialog" class="dialog">
+      <form method="dialog" class="dialog__surface">
+        <div class="dialog__header">
+          <div>
+            <p class="dialog__eyebrow">Tag Manager</p>
+            <h2>管理标签</h2>
+          </div>
+          <button class="button button--ghost" type="submit">关闭</button>
+        </div>
+
+        <div class="dialog__content">
+          <div class="tag-creator tag-creator--dialog">
+            <input id="dialog-tag-input" type="text" maxlength="24" placeholder="新建标签" />
+            <button id="dialog-tag-create-btn" class="button button--primary" type="button">
+              创建
+            </button>
+          </div>
+
+          <div id="dialog-tag-list" class="dialog-tag-list"></div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="data-dialog" class="dialog">
+      <form method="dialog" class="dialog__surface dialog__surface--narrow">
+        <div class="dialog__header">
+          <div>
+            <p class="dialog__eyebrow">Data Utilities</p>
+            <h2>数据管理</h2>
+          </div>
+          <button class="button button--ghost" type="submit">关闭</button>
+        </div>
+
+        <div class="dialog__content dialog__content--stack">
+          <p class="meta-text">
+            当前版本使用浏览器本地存储。导出 JSON 后，可在同一浏览器、其他设备或其他浏览器重新导入。
+          </p>
+
+          <div class="data-actions">
+            <button id="dialog-export-btn" class="button" type="button">导出当前数据</button>
+            <button id="dialog-import-btn" class="button" type="button">导入备份文件</button>
+            <button id="reset-btn" class="button button--danger" type="button">清空全部数据</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
